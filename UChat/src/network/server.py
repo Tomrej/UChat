@@ -14,6 +14,8 @@ class ClientHandler(QObject):
     def __init__(self, socket: QTcpSocket, parent=None):
         super().__init__(parent)
         self.socket = socket
+        # Transfer C++ object parentage to this handler to prevent premature double-free
+        self.socket.setParent(self)
         self.peer_ip = socket.peerAddress().toString()
         self.buffer = bytearray()
         self.expected_len = None
@@ -22,26 +24,26 @@ class ClientHandler(QObject):
         self.socket.disconnected.connect(self._on_disconnected)
 
     def _on_ready_read(self):
-        # Append incoming raw bytes to the internal buffer
+        # Append incoming raw bytes to internal buffer
         self.buffer.extend(self.socket.readAll().data())
 
         while True:
-            # Step 1: Parse the 4-byte Big-Endian length header
+            # Parse 4-byte Big-Endian length header
             if self.expected_len is None:
                 if len(self.buffer) < 4:
-                    break  # Wait for full header to arrive
+                    break  # Wait for full header frame
                 self.expected_len = struct.unpack(">I", self.buffer[:4])[0]
                 del self.buffer[:4]
 
-            # Step 2: Read the complete JSON payload body
+            # Read full payload frame
             if len(self.buffer) < self.expected_len:
-                break  # Wait for remaining payload bytes
+                break  # Wait for full payload bytes
 
             payload_bytes = self.buffer[:self.expected_len]
             del self.buffer[:self.expected_len]
             self.expected_len = None
 
-            # Step 3: Deserialize the raw JSON packet
+            # Deserialize JSON frame
             try:
                 json_str = payload_bytes.decode("utf-8")
                 data = json.loads(json_str)
@@ -51,7 +53,8 @@ class ClientHandler(QObject):
 
     def _on_disconnected(self):
         self.disconnected.emit(self.peer_ip)
-        self.socket.deleteLater()
+        # Safely schedule destruction of this handler and its child socket
+        self.deleteLater()
 
 
 class NetworkServer(QObject):
@@ -72,7 +75,7 @@ class NetworkServer(QObject):
         self.server.newConnection.connect(self._on_new_connection)
 
     def start(self) -> bool:
-        """Starts listening for incoming peer connections on the host and port."""
+        """Starts listening for incoming peer connections."""
         address = QHostAddress(self.host)
         if self.server.listen(address, self.port):
             print(f"[SERVER] Listening on {self.host}:{self.port}")
@@ -84,7 +87,7 @@ class NetworkServer(QObject):
             return False
 
     def stop(self):
-        """Stops the server and closes all active peer connections."""
+        """Stops server listening loop and cleans up active connections."""
         self.server.close()
         print("[SERVER] Server stopped.")
 
@@ -108,20 +111,14 @@ class NetworkServer(QObject):
         self.clients = [c for c in self.clients if c.peer_ip != client_ip]
 
 
-# === STANDALONE SERVER TEST (Phase 1) ===
 if __name__ == "__main__":
     app = QCoreApplication(sys.argv)
-
     server = NetworkServer(host="0.0.0.0", port=5000)
 
-    def on_message(data: dict, sender: str):
-        print(f"\n[RECEIVED MESSAGE from {sender}]:")
-        print(json.dumps(data, indent=2, ensure_ascii=False))
-
-    server.message_received.connect(on_message)
-    server.client_connected.connect(lambda ip: print(f"[EVENT] Connected: {ip}"))
-    server.client_disconnected.connect(lambda ip: print(f"[EVENT] Disconnected: {ip}"))
+    server.message_received.connect(
+        lambda data, sender: print(f"\n[RECEIVED from {sender}]:\n{json.dumps(data, indent=2)}")
+    )
 
     if server.start():
-        print("Press Ctrl+C to terminate...")
+        print("Press Ctrl+C to stop...")
         sys.exit(app.exec())
