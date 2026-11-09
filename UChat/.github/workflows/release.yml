@@ -48,6 +48,8 @@ jobs:
   create-release:
     needs: build-windows
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     defaults:
       run:
         working-directory: UChat
