@@ -30,9 +30,7 @@ jobs:
           pyinstaller --name="UChat" --windowed --noconfirm --clean main.py
 
       - name: Install Inno Setup
-        uses: choco-path/chocolatey-action@v1
-        with:
-          args: 'install innosetup -y'
+        run: choco install innosetup -y
 
       - name: Build Windows Installer with Inno Setup
         run: |
