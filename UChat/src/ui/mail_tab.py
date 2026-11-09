@@ -163,7 +163,8 @@ class MailTab(QWidget):
         full_body = self.inbox_bodies.get(current_row, "")
         attachment = self.inbox_table.item(current_row, 3).text()
 
-        details = f"<b>From:</b> {sender}<br><b>Subject:</b> {subject}<br><b>Attachment:</b> {attachment}<hr><br>{full_body.replace('\n', '<br>')}"
+        formatted_body = full_body.replace('\n', '<br>')
+        details = f"<b>From:</b> {sender}<br><b>Subject:</b> {subject}<br><b>Attachment:</b> {attachment}<hr><br>{formatted_body}"
 
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle("Email Viewer")

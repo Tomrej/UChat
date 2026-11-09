@@ -1,7 +1,7 @@
 [Setup]
 AppName=UChat (Unsafe Chat)
 AppVersion=1.0
-AppPublisher=CryptoLab
+AppPublisher=Tomrej
 DefaultDirName={autopf}\UChat
 DefaultGroupName=UChat
 OutputDir=..\release_dist
