@@ -1,0 +1,78 @@
+name: Build and Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: UChat
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build EXE with PyInstaller
+        run: |
+          pyinstaller --name="UChat" --windowed --noconfirm --clean main.py
+
+      - name: Install Inno Setup
+        uses: choco-path/chocolatey-action@v1
+        with:
+          args: 'install innosetup -y'
+
+      - name: Build Windows Installer with Inno Setup
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging/installer_windows.iss
+
+      - name: Upload Windows Setup Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: UChat/release_dist/UChat_Setup_v1.0.exe
+
+  create-release:
+    needs: build-windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: UChat
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Linux Release Archive
+        run: |
+          tar -czvf UChat_Linux_v0.1.0.tar.gz main.py install.sh requirements.txt README.md src/
+
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: UChat/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          prerelease: true  # Označí sestavení na GitHubu jako testovací (Pre-release)
+          files: |
+            UChat/UChat_Setup_v1.0.exe
+            UChat/UChat_Linux_v0.1.0.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
