@@ -28,7 +28,9 @@ jobs:
 
       - name: Build EXE with PyInstaller
         run: |
-          pyinstaller --name="UChat" --windowed --noconfirm --clean --collect-all src main.py
+          python -m PyInstaller --name="UChat" --windowed --noconfirm --clean --paths=. --collect-all src main.py
+        env:
+          PYTHONPATH: .
 
       - name: Install Inno Setup
         run: choco install innosetup -y
