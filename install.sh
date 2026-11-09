@@ -5,6 +5,9 @@ APP_NAME="UChat"
 INSTALL_DIR="$HOME/.local/share/UChat"
 DESKTOP_ENTRY_DIR="$HOME/.local/share/applications"
 
+# Zjištění adresáře, ve kterém je skript uložen
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 echo "=== Installing $APP_NAME for Linux ==="
 
 # Check Python 3 availability
@@ -13,12 +16,20 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
+# Určení složky se zdrojovým kódem (podporuje kořen i podsložku UChat)
+if [ -d "$SCRIPT_DIR/UChat" ]; then
+    SOURCE_DIR="$SCRIPT_DIR/UChat"
+else
+    SOURCE_DIR="$SCRIPT_DIR"
+fi
+
 # Create app directory in ~/.local/share/UChat
 echo "[1/4] Preparing installation directory at $INSTALL_DIR..."
 mkdir -p "$INSTALL_DIR"
 
-# Copy application files
-cp -r main.py requirements.txt src "$INSTALL_DIR/"
+# Copy application files (včetně config.py)
+echo "Copying source files from $SOURCE_DIR..."
+cp -r "$SOURCE_DIR/main.py" "$SOURCE_DIR/config.py" "$SOURCE_DIR/requirements.txt" "$SOURCE_DIR/src" "$INSTALL_DIR/"
 
 # Setup virtual environment
 echo "[2/4] Setting up Python virtual environment..."

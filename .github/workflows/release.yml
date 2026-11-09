@@ -8,9 +8,6 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: UChat
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -22,12 +19,14 @@ jobs:
 
       - name: Install dependencies
         run: |
+          cd UChat
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
 
       - name: Build EXE with PyInstaller
         run: |
+          cd UChat
           pyinstaller --name="UChat" --windowed --noconfirm --clean main.py
 
       - name: Install Inno Setup
@@ -37,6 +36,7 @@ jobs:
 
       - name: Build Windows Installer with Inno Setup
         run: |
+          cd UChat
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging/installer_windows.iss
 
       - name: Upload Windows Setup Artifact
@@ -50,29 +50,26 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    defaults:
-      run:
-        working-directory: UChat
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Create Linux Release Archive
         run: |
-          tar -czvf UChat_Linux_v0.1.0.tar.gz main.py install.sh requirements.txt README.md src/
+          tar -czvf UChat_Linux_v0.1.0.tar.gz install.sh uninstall.sh README.md LICENSE UChat/
 
       - name: Download Windows Artifact
         uses: actions/download-artifact@v4
         with:
           name: windows-installer
-          path: UChat/
+          path: ./
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          prerelease: true  # Označí sestavení na GitHubu jako testovací (Pre-release)
+          prerelease: true
           files: |
-            UChat/UChat_Setup_v1.0.exe
-            UChat/UChat_Linux_v0.1.0.tar.gz
+            UChat_Setup_v1.0.exe
+            UChat_Linux_v0.1.0.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
