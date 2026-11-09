@@ -60,7 +60,7 @@ Running Two Local Instances (Loopback Mode)
     python main.py 5000
     Listens on port 5000.
     Set Target Port in the top bar to 5001.
-    ``
+    ```
 
 2. **Instance 2 (Peer B):**
     ```bash
