@@ -1,3 +1,5 @@
+import os
+import base64
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QTabWidget, QStatusBar, QMessageBox, QFrame
@@ -17,7 +19,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.listen_port = listen_port
         self.setWindowTitle(f"CryptoLab Peer - Unsecured Baseline (Listening on :{self.listen_port})")
-        self.resize(900, 650)
+        self.resize(900, 700)
 
         # Initialize network components
         self.server = NetworkServer(host="0.0.0.0", port=self.listen_port)
@@ -113,29 +115,47 @@ class MainWindow(QMainWindow):
         self.server.port = new_port
         self._start_server()
 
-    @Slot(str)
-    def _send_chat_message(self, text: str):
+    @Slot(str, object)
+    def _send_chat_message(self, text: str, file_path: str = None):
         target_ip = self.target_ip_input.text().strip()
         try:
             target_port = int(self.target_port_input.text().strip())
         except ValueError:
             QMessageBox.warning(self, "Invalid Port", "Target port must be an integer value.")
             return
+
+        payload = {
+            "message": text,
+            "has_file": False,
+            "file_name": "",
+            "file_size": 0,
+            "file_data_b64": ""
+        }
+
+        if file_path and os.path.isfile(file_path):
+            try:
+                with open(file_path, "rb") as f:
+                    raw_bytes = f.read()
+                payload["has_file"] = True
+                payload["file_name"] = os.path.basename(file_path)
+                payload["file_size"] = len(raw_bytes)
+                payload["file_data_b64"] = base64.b64encode(raw_bytes).decode("utf-8")
+            except Exception as err:
+                QMessageBox.critical(self, "File Read Error", f"Failed to read attached file: {err}")
+                return
 
         packet = {
             "version": "1.0",
             "msg_type": "CHAT",
             "sender_id": f"Peer:{self.listen_port}",
-            "payload": {
-                "message": text
-            },
+            "payload": payload,
             "security_metadata": {}
         }
 
         self.client.send_message(target_ip, target_port, packet)
 
-    @Slot(dict)
-    def _send_invoice_document(self, invoice_data: dict):
+    @Slot(dict, object)
+    def _send_invoice_document(self, invoice_data: dict, file_path: str = None):
         target_ip = self.target_ip_input.text().strip()
         try:
             target_port = int(self.target_port_input.text().strip())
@@ -143,11 +163,29 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Invalid Port", "Target port must be an integer value.")
             return
 
+        payload = dict(invoice_data)
+        payload["has_file"] = False
+        payload["file_name"] = ""
+        payload["file_size"] = 0
+        payload["file_data_b64"] = ""
+
+        if file_path and os.path.isfile(file_path):
+            try:
+                with open(file_path, "rb") as f:
+                    raw_bytes = f.read()
+                payload["has_file"] = True
+                payload["file_name"] = os.path.basename(file_path)
+                payload["file_size"] = len(raw_bytes)
+                payload["file_data_b64"] = base64.b64encode(raw_bytes).decode("utf-8")
+            except Exception as err:
+                QMessageBox.critical(self, "File Read Error", f"Failed to read attached document: {err}")
+                return
+
         packet = {
             "version": "1.0",
             "msg_type": "INVOICE",
             "sender_id": invoice_data.get("sender_id", f"Company-{self.listen_port}"),
-            "payload": invoice_data,
+            "payload": payload,
             "security_metadata": {
                 "hash": "",
                 "hmac": "",
@@ -160,13 +198,26 @@ class MainWindow(QMainWindow):
     @Slot(dict, str)
     def _on_message_received(self, data: dict, sender_ip: str):
         msg_type = data.get("msg_type", "")
+        payload = data.get("payload", {})
+        sender_label = data.get("sender_id", sender_ip)
+
+        file_bytes = None
+        if payload.get("has_file", False) and payload.get("file_data_b64"):
+            try:
+                file_bytes = base64.b64decode(payload.get("file_data_b64"))
+            except Exception as err:
+                print(f"[WARN] Failed to decode Base64 attachment: {err}")
 
         if msg_type == "CHAT":
-            msg_text = data.get("payload", {}).get("message", "")
-            sender_label = data.get("sender_id", sender_ip)
+            msg_text = payload.get("message", "")
+            if file_bytes and payload.get("file_name"):
+                filename = payload.get("file_name")
+                self.chat_tab.add_received_file(filename, file_bytes, sender_label)
+                msg_text += f" <i>[Attached file: {filename}]</i>"
+
             self.chat_tab.append_message(sender_label, msg_text)
             self.statusBar().showMessage(f"New chat message received from {sender_label}")
 
         elif msg_type == "INVOICE":
-            self.mail_tab.add_received_invoice(data)
-            self.statusBar().showMessage(f"New document received from {data.get('sender_id', sender_ip)}")
+            self.mail_tab.add_received_invoice(data, file_bytes)
+            self.statusBar().showMessage(f"New document received from {sender_label}")
