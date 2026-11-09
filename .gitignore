@@ -11,6 +11,7 @@ __pycache__/
 build/
 develop-eggs/
 dist/
+release_dist/
 downloads/
 eggs/
 .eggs/
@@ -31,6 +32,7 @@ MANIFEST
 #   before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
+*.exe
 
 # Installer logs
 pip-log.txt
@@ -218,3 +220,5 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+*.pyc
