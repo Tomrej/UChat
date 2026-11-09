@@ -74,7 +74,7 @@ class MainWindow(QMainWindow):
         self.mail_tab = MailTab()
 
         self.tabs.addTab(self.chat_tab, "Live Chat")
-        self.tabs.addTab(self.mail_tab, "Mail & Invoices")
+        self.tabs.addTab(self.mail_tab, "Mail & Documents")
         main_layout.addWidget(self.tabs)
 
         self.setStatusBar(QStatusBar())
@@ -85,7 +85,7 @@ class MainWindow(QMainWindow):
 
         # Tab user action signals
         self.chat_tab.send_message_requested.connect(self._send_chat_message)
-        self.mail_tab.send_invoice_requested.connect(self._send_invoice_document)
+        self.mail_tab.send_mail_requested.connect(self._send_mail_document)
 
         # Network client error handling
         self.client.error_occurred.connect(
@@ -155,7 +155,7 @@ class MainWindow(QMainWindow):
         self.client.send_message(target_ip, target_port, packet)
 
     @Slot(dict, object)
-    def _send_invoice_document(self, invoice_data: dict, file_path: str = None):
+    def _send_mail_document(self, mail_data: dict, file_path: str = None):
         target_ip = self.target_ip_input.text().strip()
         try:
             target_port = int(self.target_port_input.text().strip())
@@ -163,7 +163,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Invalid Port", "Target port must be an integer value.")
             return
 
-        payload = dict(invoice_data)
+        payload = dict(mail_data)
         payload["has_file"] = False
         payload["file_name"] = ""
         payload["file_size"] = 0
@@ -178,13 +178,13 @@ class MainWindow(QMainWindow):
                 payload["file_size"] = len(raw_bytes)
                 payload["file_data_b64"] = base64.b64encode(raw_bytes).decode("utf-8")
             except Exception as err:
-                QMessageBox.critical(self, "File Read Error", f"Failed to read attached document: {err}")
+                QMessageBox.critical(self, "File Read Error", f"Failed to read attached file: {err}")
                 return
 
         packet = {
             "version": "1.0",
-            "msg_type": "INVOICE",
-            "sender_id": invoice_data.get("sender_id", f"Company-{self.listen_port}"),
+            "msg_type": "MAIL",
+            "sender_id": mail_data.get("sender_id", f"Company-{self.listen_port}"),
             "payload": payload,
             "security_metadata": {
                 "hash": "",
@@ -218,6 +218,6 @@ class MainWindow(QMainWindow):
             self.chat_tab.append_message(sender_label, msg_text)
             self.statusBar().showMessage(f"New chat message received from {sender_label}")
 
-        elif msg_type == "INVOICE":
-            self.mail_tab.add_received_invoice(data, file_bytes)
-            self.statusBar().showMessage(f"New document received from {sender_label}")
+        elif msg_type == "MAIL":
+            self.mail_tab.add_received_mail(data, file_bytes)
+            self.statusBar().showMessage(f"New email received from {sender_label}")

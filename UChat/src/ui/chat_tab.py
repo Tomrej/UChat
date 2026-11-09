@@ -1,10 +1,12 @@
 import os
-import base64
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QLineEdit,
     QPushButton, QLabel, QFileDialog, QListWidget, QListWidgetItem, QGroupBox, QMessageBox
 )
 from PySide6.QtCore import Signal
+
+# Maximum allowed file attachment size in Megabytes to prevent memory exhaustion
+MAX_FILE_SIZE_MB = 200
 
 
 class ChatTab(QWidget):
@@ -26,7 +28,7 @@ class ChatTab(QWidget):
         layout.addWidget(QLabel("<b>Chat History:</b>"))
         self.chat_display = QTextEdit()
         self.chat_display.setReadOnly(True)
-        layout.addWidget(self.chat_display)
+        layout.addWidget(self.chat_display, stretch=1)
 
         # File attachment status bar
         self.attachment_label = QLabel("No file attached.")
@@ -51,26 +53,35 @@ class ChatTab(QWidget):
         input_layout.addWidget(self.send_button)
         layout.addLayout(input_layout)
 
-        # Received Attachments List Group
+        # Compact Received Attachments List Group
         files_group = QGroupBox("Received Chat Attachments")
         files_layout = QHBoxLayout(files_group)
+        files_layout.setContentsMargins(8, 8, 8, 8)
 
         self.files_list = QListWidget()
+        self.files_list.setMaximumHeight(90)
         files_layout.addWidget(self.files_list)
 
         self.save_file_btn = QPushButton("Save Selected File")
         self.save_file_btn.clicked.connect(self._on_save_received_file)
         files_layout.addWidget(self.save_file_btn)
 
-        layout.addWidget(files_group)
+        layout.addWidget(files_group, stretch=0)
 
     def _on_attach_file(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select File to Send")
         if file_path:
+            size_mb = os.path.getsize(file_path) / (1024 * 1024)
+            if size_mb > MAX_FILE_SIZE_MB:
+                QMessageBox.warning(
+                    self, "File Too Large",
+                    f"Selected file size ({size_mb:.1f} MB) exceeds maximum allowed limit of {MAX_FILE_SIZE_MB} MB."
+                )
+                return
+
             self.selected_file_path = file_path
             filename = os.path.basename(file_path)
-            size_kb = os.path.getsize(file_path) / 1024
-            self.attachment_label.setText(f"Attached: {filename} ({size_kb:.1f} KB)")
+            self.attachment_label.setText(f"Attached: {filename} ({size_mb:.1f} MB)")
         else:
             self.selected_file_path = None
             self.attachment_label.setText("No file attached.")
