@@ -21,4 +21,4 @@ Name: "{group}\UChat"; Filename: "{app}\UChat.exe"
 Name: "{autodesktop}\UChat"; Filename: "{app}\UChat.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\UChat.exe"; Description: "{cm:LaunchProgram,UChat}"; Flags: nowrap postinstall skipifsilent
+Filename: "{app}\UChat.exe"; Description: "{cm:LaunchProgram,UChat}"; Flags: nowait postinstall skipifsilent
